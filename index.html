@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Sudoku Squad</title>
+<style>
+:root{--bg:#0f172a;--panel:#1e293b;--line:#334155;--txt:#e2e8f0;--mut:#94a3b8;--acc:#fbbf24;--blue:#60a5fa;--bad:#f87171;--ok:#34d399}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.screen{display:none;max-width:480px;margin:0 auto;padding:14px;min-height:100%}
+.screen.on{display:block}
+h1{margin:6px 0 2px;font-size:28px;letter-spacing:.5px}
+h2{margin:4px 0 12px;font-size:20px}
+.sub{color:var(--mut);font-size:14px;margin-bottom:14px}
+button{font:inherit;color:var(--txt);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+button:active{transform:scale(.97)}
+.primary{background:var(--acc);color:#1c1917;border-color:var(--acc);font-weight:700}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;margin:10px 0}
+.tier{display:flex;align-items:center;gap:10px;width:100%;text-align:left;margin:8px 0}
+.dot{width:12px;height:12px;border-radius:50%;flex:none}
+.tier .meta{flex:1}.tier small{color:var(--mut)}
+.bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;background:var(--acc)}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.top button{padding:8px 12px}
+.grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.lv{padding:12px 0;text-align:center;font-weight:600;position:relative}
+.lv.done{border-color:var(--ok)}
+.lv.cur{border-color:var(--acc)}
+.lv small{display:block;font-size:10px;color:var(--ok);height:12px}
+/* game */
+.hud{display:flex;justify-content:space-between;align-items:center;font-size:14px;color:var(--mut);margin:2px 2px 8px}
+.hud b{color:var(--txt)}
+.board{display:grid;grid-template-columns:repeat(9,1fr);width:min(100%,52vh,460px);aspect-ratio:1;margin:0 auto;border:2px solid var(--txt);border-radius:6px;overflow:hidden;background:var(--panel)}
+.c{position:relative;display:flex;align-items:center;justify-content:center;font-size:clamp(18px,6.2vw,30px);border:1px solid var(--line);color:var(--blue);cursor:pointer}
+.c.br{border-right:2px solid var(--txt)}.c.bb{border-bottom:2px solid var(--txt)}
+.c.g{color:var(--txt);font-weight:700}
+.c.pe{background:#243247}.c.sm{background:#3b4f6b}.c.sel{background:#6b5a1f!important}
+.c.bad{color:var(--bad);background:#4a2227}
+.nt{display:grid;grid-template-columns:repeat(3,1fr);width:100%;height:100%;font-size:clamp(7px,2.4vw,11px);color:var(--mut);line-height:1}
+.nt span{display:flex;align-items:center;justify-content:center}
+.pad{display:grid;grid-template-columns:repeat(9,1fr);gap:5px;margin:12px auto 8px;width:min(100%,460px)}
+.pad button{padding:10px 0;font-size:22px;font-weight:600;color:var(--blue)}
+.pad button.zero{opacity:.25}
+.tools{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;width:min(100%,460px);margin:0 auto}
+.tools button{font-size:13px;padding:10px 4px}
+.tools button.on{background:var(--acc);color:#1c1917}
+.race{width:min(100%,460px);margin:8px auto 0;font-size:12px;color:var(--mut)}
+.race div{display:flex;align-items:center;gap:6px;margin:2px 0}
+.race .bar{flex:1;margin:0}
+.overlay{position:fixed;inset:0;background:rgba(2,6,23,.8);display:none;align-items:center;justify-content:center;z-index:9;padding:20px}
+.overlay.on{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;width:100%;max-width:360px;text-align:center}
+.modal h2{margin:0 0 6px}
+.stars{font-size:34px;color:var(--acc);letter-spacing:4px}
+.modal .row,.modal button.full{margin-top:10px}
+button.full{width:100%}
+input{font:inherit;color:var(--txt);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px;width:100%;user-select:text}
+label{display:block;font-size:13px;color:var(--mut);margin:12px 0 4px}
+table{width:100%;border-collapse:collapse}
+td,th{padding:8px 4px;text-align:left;border-bottom:1px solid var(--line);font-size:15px}
+th{color:var(--mut);font-weight:500;font-size:12px}
+td:last-child,th:last-child{text-align:right}
+.me{color:var(--acc);font-weight:700}
+.banner{background:#3b2f0a;border:1px solid var(--acc);border-radius:12px;padding:10px;margin:10px 0;display:none}
+.banner.on{display:block}
+.tabs{display:flex;gap:6px;margin-bottom:10px}.tabs button{flex:1;padding:8px}
+.tabs button.on{background:var(--acc);color:#1c1917;font-weight:700}
+.msg{color:var(--mut);font-size:13px;margin-top:8px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#000c;padding:10px 16px;border-radius:20px;font-size:14px;display:none;z-index:20}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<section class="screen on" id="s-home">
+  <div class="top"><div><h1>Sudoku Squad</h1><div class="sub">10,000 levels · race your friends</div></div>
+    <button onclick="go('friends')">🏆</button></div>
+  <div class="banner" id="raceBanner"></div>
+  <button class="primary full" style="padding:16px;font-size:18px" onclick="playNext()" id="btnContinue">Play</button>
+  <div id="tiers"></div>
+  <div class="row" style="margin-top:6px"><button onclick="go('friends')">Friends</button><button onclick="go('settings')">Settings</button></div>
+</section>
+
+<!-- LEVEL SELECT -->
+<section class="screen" id="s-levels">
+  <div class="top"><button onclick="go('home')">←</button><h2 id="lvTitle" style="margin:0"></h2><span></span></div>
+  <div class="row" style="margin-bottom:10px"><button id="pgPrev">‹</button><div id="pgLabel" style="text-align:center;align-self:center"></div><button id="pgNext">›</button></div>
+  <div class="grid" id="lvGrid"></div>
+  <div class="row" style="margin-top:12px"><input id="jumpNum" type="number" inputmode="numeric" placeholder="Go to level…"><button onclick="jump()">Go</button></div>
+</section>
+
+<!-- GAME -->
+<section class="screen" id="s-game">
+  <div class="top"><button onclick="leaveGame()">←</button><div id="gTitle" style="font-weight:700"></div><button onclick="togglePause()" id="btnPause">⏸</button></div>
+  <div class="hud"><span>❌ <b id="gMist">0</b>/3</span><span>💡 <b id="gHint">0</b></span><span>⏱ <b id="gTime">0:00</b></span></div>
+  <div class="board" id="board"></div>
+  <div class="race" id="raceBars"></div>
+  <div class="pad" id="pad"></div>
+  <div class="tools">
+    <button id="tUndo" onclick="undo()">↶ Undo</button>
+    <button id="tErase" onclick="erase()">⌫ Erase</button>
+    <button id="tNote" onclick="toggleNotes()">✎ Notes</button>
+    <button id="tHint" onclick="hint()">💡 Hint</button>
+  </div>
+</section>
+
+<!-- FRIENDS -->
+<section class="screen" id="s-friends">
+  <div class="top"><button onclick="go('home')">←</button><h2 style="margin:0">Friends</h2><button onclick="loadBoard()">⟳</button></div>
+  <div id="friendsOff" class="card" style="display:none">Multiplayer isn't set up yet. <button class="primary full" onclick="go('settings')">Set up squad</button></div>
+  <div id="friendsOn" style="display:none">
+    <div class="tabs"><button id="tabAll" class="on" onclick="tab('all')">Overall</button><button id="tabLvl" onclick="tab('lvl')">By level</button></div>
+    <div id="boardAll"></div>
+    <div id="boardLvl" style="display:none">
+      <div class="row"><input id="lbLevel" type="number" inputmode="numeric" placeholder="Level #"><button onclick="loadBoard()">Show</button></div>
+      <div id="lvlTable"></div>
+      <button class="primary full" onclick="startRace()">🏁 Start a race on this level</button>
+      <div class="msg">Everyone in your squad gets a join button and sees live progress.</div>
+    </div>
+  </div>
+</section>
+
+<!-- SETTINGS -->
+<section class="screen" id="s-settings">
+  <div class="top"><button onclick="go('home')">←</button><h2 style="margin:0">Settings</h2><span></span></div>
+  <label>Your name</label><input id="setName" maxlength="14">
+  <label>Firebase database URL</label><input id="setDb" placeholder="https://xxxx-default-rtdb.firebaseio.com">
+  <label>Squad code</label><input id="setGroup" maxlength="12" placeholder="e.g. K7Q2M" style="text-transform:uppercase">
+  <div class="row" style="margin-top:12px"><button class="primary" onclick="saveSettings()">Save</button><button onclick="newSquad()">New squad code</button></div>
+  <div class="row" style="margin-top:8px"><button onclick="invite()">Invite friends</button><button onclick="syncAll()">Sync my progress</button></div>
+  <div class="msg">Inviting shares a link. Friends open it, pick a name, and they're in — no typing codes.</div>
+  <div class="msg" style="margin-top:24px">Game rules: 3 mistakes ends a level. Hints add 45 s, each mistake 20 s. Stars compare your final time with a par time for the tier.</div>
+</section>
+
+<div class="overlay" id="ov"><div class="modal" id="ovBox"></div></div>
+<div id="toast"></div>
+
+<script src="engine.js"></script>
+<script>
+'use strict';
+const E = SudokuEngine, TIERS = E.TIERS, MAXM = 3;
+const $ = s => document.querySelector(s);
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+function toast(t) { const el = $('#toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = 'none', 2200); }
+
+/* ---------- state ---------- */
+let me = LS.get('me', null);
+if (!me) { me = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: '' }; LS.set('me', me); }
+let cfg = LS.get('cfg', { db: '', group: '' });
+let prog = LS.get('prog', {});      // {level:{t:bestFinalSeconds, s:bestStars}}
+let G = null, timer = null, screen = 'home', page = 0, curTier = 0, lastTab = 'all', raceDismissed = LS.get('rd', '');
+
+const online = () => !!(cfg.db && cfg.group);
+const tierIdx = n => TIERS.indexOf(E.tierOf(n));
+const nextLevel = () => { for (let n = 1; n <= E.MAX_LEVEL; n++) if (!prog[n]) return n; return E.MAX_LEVEL; };
+const totalPoints = () => Object.keys(prog).reduce((a, n) => a + prog[n].s * E.tierOf(+n).pts, 0);
+
+/* ---------- navigation ---------- */
+function go(s) {
+  screen = s;
+  document.querySelectorAll('.screen').forEach(e => e.classList.toggle('on', e.id === 's-' + s));
+  if (s === 'home') renderHome();
+  if (s === 'levels') renderLevels();
+  if (s === 'friends') { $('#friendsOff').style.display = online() ? 'none' : 'block'; $('#friendsOn').style.display = online() ? 'block' : 'none'; if (online()) loadBoard(); }
+  if (s === 'settings') { $('#setName').value = me.name; $('#setDb').value = cfg.db; $('#setGroup').value = cfg.group; }
+  window.scrollTo(0, 0);
+}
+function overlay(html) { $('#ovBox').innerHTML = html; $('#ov').classList.add('on'); }
+function closeOv() { $('#ov').classList.remove('on'); }
+
+/* ---------- home / levels ---------- */
+function renderHome() {
+  const n = nextLevel();
+  $('#btnContinue').textContent = (LS.get('cur', null) ? 'Resume level ' + LS.get('cur').level : 'Play level ' + n);
+  const done = Object.keys(prog).length;
+  $('#tiers').innerHTML = TIERS.map((t, i) => {
+    const total = t.to - t.from + 1; let d = 0;
+    for (const k in prog) if (+k >= t.from && +k <= t.to) d++;
+    return `<button class="tier" onclick="openTier(${i})"><span class="dot" style="background:${t.color}"></span>
+      <span class="meta"><b>${t.name}</b> <small>levels ${t.from}–${t.to}</small>
+      <div class="bar"><i style="width:${100 * d / total}%;background:${t.color}"></i></div></span><small>${d}/${total}</small></button>`;
+  }).join('') + `<div class="msg" style="text-align:center">${done} solved · ${totalPoints()} points</div>`;
+}
+function openTier(i) { curTier = i; const t = TIERS[i]; const n = nextLevel(); page = (n >= t.from && n <= t.to) ? Math.floor((n - t.from) / 100) : 0; go('levels'); }
+function renderLevels() {
+  const t = TIERS[curTier], pages = Math.ceil((t.to - t.from + 1) / 100), n0 = nextLevel();
+  $('#lvTitle').textContent = t.name; $('#lvTitle').style.color = t.color;
+  $('#pgLabel').textContent = `${t.from + page * 100}–${Math.min(t.to, t.from + page * 100 + 99)}`;
+  $('#pgPrev').onclick = () => { page = (page + pages - 1) % pages; renderLevels(); };
+  $('#pgNext').onclick = () => { page = (page + 1) % pages; renderLevels(); };
+  let h = '';
+  for (let n = t.from + page * 100; n <= Math.min(t.to, t.from + page * 100 + 99); n++) {
+    const p = prog[n];
+    h += `<button class="lv ${p ? 'done' : ''} ${n === n0 ? 'cur' : ''}" onclick="startLevel(${n})">${n}<small>${p ? '★'.repeat(p.s) : ''}</small></button>`;
+  }
+  $('#lvGrid').innerHTML = h;
+}
+function jump() { const n = parseInt($('#jumpNum').value); if (n >= 1 && n <= E.MAX_LEVEL) startLevel(n); else toast('Enter 1–10000'); }
+function playNext() { const c = LS.get('cur', null); startLevel(c ? c.level : nextLevel()); }
+
+/* ---------- game ---------- */
+function startLevel(n, race) {
+  closeOv();
+  $('#gTitle').textContent = 'Loading…'; go('game');
+  setTimeout(() => {
+    const L = E.generate(n), saved = LS.get('cur', null);
+    G = { n, tier: L.tier, puz: L.puz, sol: L.sol, vals: Int8Array.from(L.puz), notes: new Int16Array(81), sel: -1,
+          mist: 0, hints: 0, time: 0, notesMode: false, undo: [], done: false, paused: false, race: race || null };
+    if (saved && saved.level === n && !race) {
+      G.vals = Int8Array.from(saved.vals); G.notes = Int16Array.from(saved.notes); G.mist = saved.mist; G.hints = saved.hints; G.time = saved.time;
+    } else LS.set('cur', null);
+    if (race) { G.race = race; }
+    buildBoard(); render(); startTimer();
+  }, 30);
+}
+function buildBoard() {
+  let h = '';
+  for (let i = 0; i < 81; i++) h += `<div class="c ${E.C[i] % 3 === 2 && E.C[i] < 8 ? 'br' : ''} ${E.R[i] % 3 === 2 && E.R[i] < 8 ? 'bb' : ''}" data-i="${i}"></div>`;
+  $('#board').innerHTML = h;
+  $('#board').onclick = e => { const c = e.target.closest('.c'); if (c) { G.sel = +c.dataset.i; render(); } };
+  let p = ''; for (let d = 1; d <= 9; d++) p += `<button data-d="${d}">${d}</button>`;
+  $('#pad').innerHTML = p;
+  $('#pad').onclick = e => { const b = e.target.closest('button'); if (b) input(+b.dataset.d); };
+}
+function render() {
+  if (!G) return;
+  const cells = $('#board').children, sv = G.sel >= 0 ? G.vals[G.sel] : 0, counts = new Array(10).fill(0);
+  for (let i = 0; i < 81; i++) {
+    const el = cells[i], v = G.vals[i]; let cls = 'c' + (E.C[i] % 3 === 2 && E.C[i] < 8 ? ' br' : '') + (E.R[i] % 3 === 2 && E.R[i] < 8 ? ' bb' : '');
+    if (G.puz[i]) cls += ' g';
+    if (v && v !== G.sol[i]) cls += ' bad'; else if (v) counts[v]++;
+    if (G.sel >= 0) {
+      const s = G.sel;
+      if (i === s) cls += ' sel';
+      else if (v && v === sv && v === G.sol[i]) cls += ' sm';
+      else if (E.R[i] === E.R[s] || E.C[i] === E.C[s] || E.B[i] === E.B[s]) cls += ' pe';
+    }
+    el.className = cls;
+    if (v) el.textContent = v;
+    else if (G.notes[i]) { let n = '<div class="nt">'; for (let d = 1; d <= 9; d++) n += `<span>${G.notes[i] & (1 << d) ? d : ''}</span>`; el.innerHTML = n + '</div>'; }
+    else el.textContent = '';
+  }
+  document.querySelectorAll('#pad button').forEach(b => b.classList.toggle('zero', counts[+b.dataset.d] >= 9));
+  $('#gTitle').innerHTML = `<span style="color:${G.tier.color}">${G.tier.name}</span> · ${G.n}`;
+  $('#gMist').textContent = G.mist; $('#gHint').textContent = G.hints; $('#gTime').textContent = fmt(G.time);
+  $('#tNote').classList.toggle('on', G.notesMode);
+}
+function startTimer() { clearInterval(timer); timer = setInterval(() => { if (G && !G.done && !G.paused && screen === 'game' && !document.hidden) { G.time++; $('#gTime').textContent = fmt(G.time); if (G.time % 5 === 0) saveCur(); } }, 1000); }
+function saveCur() { if (G && !G.done && !G.race) LS.set('cur', { level: G.n, vals: [...G.vals], notes: [...G.notes], mist: G.mist, hints: G.hints, time: G.time }); }
+function pushUndo(i) { G.undo.push([i, G.vals[i], G.notes[i]]); if (G.undo.length > 200) G.undo.shift(); }
+function input(d) {
+  if (!G || G.done || G.paused || G.sel < 0) return;
+  const i = G.sel; if (G.puz[i] || G.vals[i] === G.sol[i]) return;
+  if (G.notesMode) { if (G.vals[i]) return; pushUndo(i); G.notes[i] ^= 1 << d; }
+  else {
+    pushUndo(i); G.vals[i] = d; G.notes[i] = 0;
+    if (d !== G.sol[i]) { G.mist++; if (navigator.vibrate) navigator.vibrate(60); if (G.mist >= MAXM) { render(); return lose(); } }
+    else for (let j = 0; j < 81; j++) if (E.R[j] === E.R[i] || E.C[j] === E.C[i] || E.B[j] === E.B[i]) G.notes[j] &= ~(1 << d);
+  }
+  render(); saveCur(); checkWin(); raceReport();
+}
+function erase() { if (!G || G.done || G.sel < 0) return; const i = G.sel; if (G.puz[i] || G.vals[i] === G.sol[i]) return; if (!G.vals[i] && !G.notes[i]) return; pushUndo(i); G.vals[i] = 0; G.notes[i] = 0; render(); saveCur(); }
+function undo() { if (!G || G.done || !G.undo.length) return; const [i, v, n] = G.undo.pop(); G.vals[i] = v; G.notes[i] = n; G.sel = i; render(); saveCur(); }
+function toggleNotes() { G.notesMode = !G.notesMode; render(); }
+function hint() {
+  if (!G || G.done) return;
+  let i = G.sel;
+  if (i < 0 || G.vals[i] === G.sol[i]) { const c = []; for (let k = 0; k < 81; k++) if (G.vals[k] !== G.sol[k]) c.push(k); if (!c.length) return; i = c[0]; }
+  pushUndo(i); G.vals[i] = G.sol[i]; G.notes[i] = 0; G.sel = i; G.hints++;
+  for (let j = 0; j < 81; j++) if (E.R[j] === E.R[i] || E.C[j] === E.C[i] || E.B[j] === E.B[i]) G.notes[j] &= ~(1 << G.sol[i]);
+  render(); saveCur(); checkWin(); raceReport();
+}
+function togglePause() { if (!G || G.done) return; G.paused = !G.paused; $('#board').style.visibility = G.paused ? 'hidden' : 'visible'; $('#btnPause').textContent = G.paused ? '▶' : '⏸'; }
+function leaveGame() { saveCur(); go('home'); }
+function filled() { let f = 0, t = 0; for (let i = 0; i < 81; i++) if (!G.puz[i]) { t++; if (G.vals[i] === G.sol[i]) f++; } return Math.round(100 * f / t); }
+
+function lose() {
+  G.done = true; LS.set('cur', null);
+  overlay(`<h2>Out of lives 💔</h2><div class="sub">3 mistakes on level ${G.n}</div>
+    <button class="primary full" onclick="startLevel(${G.n}${G.race ? ',' + JSON.stringify(G.race) : ''})">Try again</button>
+    <button class="full" onclick="closeOv();go('home')">Menu</button>`);
+}
+function checkWin() {
+  for (let i = 0; i < 81; i++) if (G.vals[i] !== G.sol[i]) return;
+  G.done = true; LS.set('cur', null);
+  const t = G.tier, fin = G.time + 20 * G.mist + 45 * G.hints;
+  const stars = fin <= t.par * 0.5 ? 3 : fin <= t.par ? 2 : 1;
+  const old = prog[G.n], improved = !old || fin < old.t || stars > old.s;
+  if (improved) { prog[G.n] = { t: Math.min(fin, old ? old.t : 1e9), s: Math.max(stars, old ? old.s : 0) }; LS.set('prog', prog); }
+  raceReport(true, fin);
+  if (improved) pushScore(G.n);
+  const nxt = G.n < E.MAX_LEVEL ? G.n + 1 : G.n;
+  overlay(`<h2>Solved! 🎉</h2><div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3 - stars)}</div>
+    <div class="sub">Time ${fmt(G.time)} · ${G.mist} mistakes · ${G.hints} hints<br><b style="color:var(--txt)">Final ${fmt(fin)}</b> (par ${fmt(t.par)})</div>
+    ${online() ? '<div class="msg">Score sent to your squad.</div>' : ''}
+    <button class="primary full" onclick="startLevel(${nxt})">Next level</button>
+    ${online() ? `<button class="full" onclick="closeOv();$('#lbLevel').value=${G.n};go('friends');tab('lvl')">See times</button>` : ''}
+    <button class="full" onclick="closeOv();go('home')">Menu</button>`);
+}
+
+/* ---------- Firebase (REST, no SDK) ---------- */
+function url(path) { return cfg.db.replace(/\/+$/, '') + '/groups/' + encodeURIComponent(cfg.group) + path + '.json'; }
+async function fb(method, path, body) {
+  if (!online()) return null;
+  try { const r = await fetch(url(path), { method, body: body === undefined ? undefined : JSON.stringify(body) }); return r.ok ? await r.json() : null; }
+  catch (e) { return null; }
+}
+async function pushScore(n) {
+  if (!online() || !me.name) return;
+  const upd = {}; upd['players/' + me.id] = { n: me.name, p: totalPoints(), s: Object.keys(prog).length, ts: Date.now() };
+  upd['levels/' + n + '/' + me.id] = { n: me.name, t: prog[n].t, s: prog[n].s };
+  await fb('PATCH', '', upd);
+}
+async function syncAll() {
+  if (!online()) return toast('Set DB URL and squad code first');
+  const upd = {}; upd['players/' + me.id] = { n: me.name, p: totalPoints(), s: Object.keys(prog).length, ts: Date.now() };
+  for (const n in prog) upd['levels/' + n + '/' + me.id] = { n: me.name, t: prog[n].t, s: prog[n].s };
+  const r = await fb('PATCH', '', upd); toast(r ? 'Progress synced ✓' : 'Could not reach database');
+}
+function tab(t) {
+  lastTab = t; $('#tabAll').classList.toggle('on', t === 'all'); $('#tabLvl').classList.toggle('on', t === 'lvl');
+  $('#boardAll').style.display = t === 'all' ? 'block' : 'none'; $('#boardLvl').style.display = t === 'lvl' ? 'block' : 'none'; loadBoard();
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+async function loadBoard() {
+  if (!online()) return;
+  if (lastTab === 'all') {
+    $('#boardAll').innerHTML = '<div class="msg">Loading…</div>';
+    const d = await fb('GET', '/players'); if (!d) { $('#boardAll').innerHTML = '<div class="msg">No data yet (or offline).</div>'; return; }
+    const arr = Object.entries(d).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.p - a.p || b.s - a.s);
+    $('#boardAll').innerHTML = '<table><tr><th>#</th><th>Player</th><th>Solved</th><th>Points</th></tr>' +
+      arr.map((p, i) => `<tr class="${p.id === me.id ? 'me' : ''}"><td>${i + 1}</td><td>${esc(p.n)}</td><td>${p.s}</td><td>${p.p}</td></tr>`).join('') + '</table>';
+  } else {
+    const n = parseInt($('#lbLevel').value) || LS.get('lastLb', 1); $('#lbLevel').value = n; LS.set('lastLb', n);
+    $('#lvlTable').innerHTML = '<div class="msg">Loading…</div>';
+    const d = await fb('GET', '/levels/' + n);
+    if (!d) { $('#lvlTable').innerHTML = '<div class="msg">Nobody has solved level ' + n + ' yet.</div>'; return; }
+    const arr = Object.entries(d).map(([id, v]) => ({ id, ...v })).sort((a, b) => a.t - b.t);
+    $('#lvlTable').innerHTML = `<table><tr><th>#</th><th>Player</th><th>Stars</th><th>Final time</th></tr>` +
+      arr.map((p, i) => `<tr class="${p.id === me.id ? 'me' : ''}"><td>${i + 1}</td><td>${esc(p.n)}</td><td>${'★'.repeat(p.s)}</td><td>${fmt(p.t)}</td></tr>`).join('') + '</table>';
+  }
+}
+
+/* ---------- live race ---------- */
+async function startRace() {
+  const n = parseInt($('#lbLevel').value); if (!(n >= 1 && n <= E.MAX_LEVEL)) return toast('Enter a level 1–10000');
+  const race = { id: Date.now().toString(36), level: n, by: me.name || 'Someone', ts: Date.now() };
+  await fb('PUT', '/race', race); raceDismissed = race.id; LS.set('rd', raceDismissed);
+  startLevel(n, race);
+}
+function joinRace() { const r = window._race; if (!r) return; raceDismissed = r.id; LS.set('rd', r.id); startLevel(r.level, r); }
+let lastReport = 0;
+async function raceReport(done, fin) {
+  if (!G || !G.race || !online()) return; const now = Date.now();
+  if (!done && now - lastReport < 2500) return; lastReport = now;
+  fb('PUT', '/raceProg/' + G.race.id + '/' + me.id, { n: me.name || 'Player', f: done ? 100 : filled(), d: !!done, t: done ? fin : null });
+}
+async function poll() {
+  if (!online() || document.hidden) return;
+  if (screen === 'home' || screen === 'friends') {
+    const r = await fb('GET', '/race');
+    const b = $('#raceBanner');
+    if (r && r.id !== raceDismissed && Date.now() - r.ts < 3600e3) {
+      window._race = r; b.innerHTML = `🏁 <b>${esc(r.by)}</b> started a race on level ${r.level}<button class="primary full" onclick="joinRace()">Join race</button>`; b.classList.add('on');
+    } else b.classList.remove('on');
+  }
+  if (screen === 'game' && G && G.race) {
+    const d = await fb('GET', '/raceProg/' + G.race.id);
+    if (d) $('#raceBars').innerHTML = Object.entries(d).filter(([id]) => id !== me.id).map(([id, v]) =>
+      `<div><span style="width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(v.n)}</span><span class="bar"><i style="width:${v.f}%;background:${v.d ? 'var(--ok)' : 'var(--blue)'}"></i></span><span>${v.d ? '✓ ' + fmt(v.t) : v.f + '%'}</span></div>`).join('');
+  }
+}
+setInterval(poll, 4000);
+
+/* ---------- settings / invite ---------- */
+function saveSettings() {
+  me.name = $('#setName').value.trim().slice(0, 14); LS.set('me', me);
+  cfg = { db: $('#setDb').value.trim(), group: $('#setGroup').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') }; LS.set('cfg', cfg);
+  toast('Saved'); if (online() && me.name) syncAll();
+}
+function newSquad() { const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 5; i++) c += a[Math.floor(Math.random() * a.length)]; $('#setGroup').value = c; }
+async function invite() {
+  saveSettings(); if (!online()) return toast('Add DB URL and squad code first');
+  const link = location.href.split('#')[0] + '#j=' + encodeURIComponent(btoa(JSON.stringify(cfg)));
+  try { if (navigator.share) { await navigator.share({ title: 'Sudoku Squad', text: 'Join my Sudoku squad!', url: link }); return; } } catch (e) {}
+  try { await navigator.clipboard.writeText(link); toast('Invite link copied'); } catch (e) { prompt('Copy this link:', link); }
+}
+function checkInvite() {
+  const m = location.hash.match(/j=([^&]+)/); if (!m) return;
+  try {
+    const j = JSON.parse(atob(decodeURIComponent(m[1])));
+    if (j.db && j.group) { cfg = { db: j.db, group: j.group }; LS.set('cfg', cfg); history.replaceState(null, '', location.pathname); toast('Joined squad ' + j.group); if (!me.name) go('settings'); }
+  } catch (e) {}
+}
+
+/* ---------- boot ---------- */
+checkInvite(); go(screen === 'settings' ? 'settings' : 'home');
+if (!me.name && !location.hash) setTimeout(() => { if (screen === 'home') toast('Tip: set your name in Settings'); }, 1500);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
