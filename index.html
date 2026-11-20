@@ -132,6 +132,7 @@ td:last-child,th:last-child{text-align:right}
   <div class="top"><button onclick="go('home')">←</button><h2 style="margin:0">Settings</h2><span></span></div>
   <label>Your name</label><input id="setName" maxlength="14">
   <label>Firebase database URL</label><input id="setDb" placeholder="https://xxxx-default-rtdb.firebaseio.com">
+  <label>Game web link (used for invites inside the APK)</label><input id="setSite" placeholder="https://YOURNAME.github.io/sudoku/">
   <label>Squad code</label><input id="setGroup" maxlength="12" placeholder="e.g. K7Q2M" style="text-transform:uppercase">
   <div class="row" style="margin-top:12px"><button class="primary" onclick="saveSettings()">Save</button><button onclick="newSquad()">New squad code</button></div>
   <div class="row" style="margin-top:8px"><button onclick="invite()">Invite friends</button><button onclick="syncAll()">Sync my progress</button></div>
@@ -173,7 +174,7 @@ function go(s) {
   if (s === 'home') renderHome();
   if (s === 'levels') renderLevels();
   if (s === 'friends') { $('#friendsOff').style.display = online() ? 'none' : 'block'; $('#friendsOn').style.display = online() ? 'block' : 'none'; if (online()) loadBoard(); }
-  if (s === 'settings') { $('#setName').value = me.name; $('#setDb').value = cfg.db; $('#setGroup').value = cfg.group; }
+  if (s === 'settings') { $('#setName').value = me.name; $('#setDb').value = cfg.db; $('#setGroup').value = cfg.group; $('#setSite').value = cfg.site || ''; }
   window.scrollTo(0, 0);
 }
 function overlay(html) { $('#ovBox').innerHTML = html; $('#ov').classList.add('on'); }
@@ -386,13 +387,15 @@ setInterval(poll, 4000);
 /* ---------- settings / invite ---------- */
 function saveSettings() {
   me.name = $('#setName').value.trim().slice(0, 14); LS.set('me', me);
-  cfg = { db: $('#setDb').value.trim(), group: $('#setGroup').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') }; LS.set('cfg', cfg);
+  cfg = { site: $('#setSite').value.trim(), db: $('#setDb').value.trim(), group: $('#setGroup').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') }; LS.set('cfg', cfg);
   toast('Saved'); if (online() && me.name) syncAll();
 }
 function newSquad() { const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 5; i++) c += a[Math.floor(Math.random() * a.length)]; $('#setGroup').value = c; }
 async function invite() {
   saveSettings(); if (!online()) return toast('Add DB URL and squad code first');
-  const link = location.href.split('#')[0] + '#j=' + encodeURIComponent(btoa(JSON.stringify(cfg)));
+  const base = (location.hostname === 'localhost' && cfg.site) ? cfg.site : location.href.split('#')[0];
+  if (/localhost/.test(base)) return toast('Add your Game web link in Settings first');
+  const link = base.split('#')[0] + '#j=' + encodeURIComponent(btoa(JSON.stringify({ db: cfg.db, group: cfg.group })));
   try { if (navigator.share) { await navigator.share({ title: 'Sudoku Squad', text: 'Join my Sudoku squad!', url: link }); return; } } catch (e) {}
   try { await navigator.clipboard.writeText(link); toast('Invite link copied'); } catch (e) { prompt('Copy this link:', link); }
 }
