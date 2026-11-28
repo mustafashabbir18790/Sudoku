@@ -162,7 +162,7 @@ function toast(t) { const el = $('#toast'); el.textContent = t; el.style.display
 
 /* ---------- state ---------- */
 /* ONE-TIME SETUP: paste your Firebase database URL between the quotes so friends only need the squad code */
-const DEFAULT_DB = '';
+const DEFAULT_DB = 'https://squad-sudoku-default-rtdb.firebaseio.com/';
 let me = LS.get('me', null);
 if (!me) { me = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: '' }; LS.set('me', me); }
 let cfg = LS.get('cfg', { db: '', group: '' });
