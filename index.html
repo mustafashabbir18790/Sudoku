@@ -83,6 +83,11 @@ td:last-child,th:last-child{text-align:right}
   <div class="top"><div><h1>Sudoku Squad</h1><div class="sub">10,000 levels · race your friends</div></div>
     <button onclick="go('friends')">🏆</button></div>
   <div class="banner" id="raceBanner"></div>
+  <div class="card" id="joinCard" style="display:none"><b>Join your friends' squad</b>
+    <label>Your name</label><input id="jName" maxlength="14">
+    <label>Squad code</label><input id="jCode" maxlength="12" style="text-transform:uppercase" placeholder="e.g. K7Q2M">
+    <button class="primary full" style="margin-top:12px" onclick="joinSquad()">Join squad</button>
+    <div class="msg">Optional — you can also just play solo.</div></div>
   <button class="primary full" style="padding:16px;font-size:18px" onclick="playNext()" id="btnContinue">Play</button>
   <div id="tiers"></div>
   <div class="row" style="margin-top:6px"><button onclick="go('friends')">Friends</button><button onclick="go('settings')">Settings</button></div>
@@ -114,7 +119,7 @@ td:last-child,th:last-child{text-align:right}
 <!-- FRIENDS -->
 <section class="screen" id="s-friends">
   <div class="top"><button onclick="go('home')">←</button><h2 style="margin:0">Friends</h2><button onclick="loadBoard()">⟳</button></div>
-  <div id="friendsOff" class="card" style="display:none">Multiplayer isn't set up yet. <button class="primary full" onclick="go('settings')">Set up squad</button></div>
+  <div id="friendsOff" class="card" style="display:none">You're not in a squad yet. <button class="primary full" onclick="go('home')">Join with a squad code</button><button class="full" style="margin-top:8px" onclick="go('settings')">Create a squad</button></div>
   <div id="friendsOn" style="display:none">
     <div class="tabs"><button id="tabAll" class="on" onclick="tab('all')">Overall</button><button id="tabLvl" onclick="tab('lvl')">By level</button></div>
     <div id="boardAll"></div>
@@ -156,9 +161,12 @@ const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(
 function toast(t) { const el = $('#toast'); el.textContent = t; el.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = 'none', 2200); }
 
 /* ---------- state ---------- */
+/* ONE-TIME SETUP: paste your Firebase database URL between the quotes so friends only need the squad code */
+const DEFAULT_DB = '';
 let me = LS.get('me', null);
 if (!me) { me = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: '' }; LS.set('me', me); }
 let cfg = LS.get('cfg', { db: '', group: '' });
+if (!cfg.db && DEFAULT_DB) cfg.db = DEFAULT_DB;
 let prog = LS.get('prog', {});      // {level:{t:bestFinalSeconds, s:bestStars}}
 let G = null, timer = null, screen = 'home', page = 0, curTier = 0, lastTab = 'all', raceDismissed = LS.get('rd', '');
 
@@ -182,6 +190,7 @@ function closeOv() { $('#ov').classList.remove('on'); }
 
 /* ---------- home / levels ---------- */
 function renderHome() {
+  $('#joinCard').style.display = online() ? 'none' : 'block'; if (!$('#jName').value) $('#jName').value = me.name;
   const n = nextLevel();
   $('#btnContinue').textContent = (LS.get('cur', null) ? 'Resume level ' + LS.get('cur').level : 'Play level ' + n);
   const done = Object.keys(prog).length;
@@ -390,19 +399,30 @@ function saveSettings() {
   cfg = { site: $('#setSite').value.trim(), db: $('#setDb').value.trim(), group: $('#setGroup').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') }; LS.set('cfg', cfg);
   toast('Saved'); if (online() && me.name) syncAll();
 }
+async function joinSquad() {
+  const name = $('#jName').value.trim().slice(0, 14), code = $('#jCode').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!name) return toast('Enter your name'); if (code.length < 3) return toast('Enter the squad code');
+  if (!cfg.db && !DEFAULT_DB) return toast('This app has no squad server set up yet');
+  const old = cfg; cfg = { site: old.site || '', db: old.db || DEFAULT_DB, group: code };
+  toast('Checking…'); const d = await fb('GET', '/players');
+  if (d === null) { cfg = old; return toast('No squad found with that code, or no internet'); }
+  me.name = name; LS.set('me', me); LS.set('cfg', cfg); await syncAll(); toast('Joined squad ' + code); renderHome();
+}
 function newSquad() { const a = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 5; i++) c += a[Math.floor(Math.random() * a.length)]; $('#setGroup').value = c; }
 async function invite() {
   saveSettings(); if (!online()) return toast('Add DB URL and squad code first');
   const base = (location.hostname === 'localhost' && cfg.site) ? cfg.site : location.href.split('#')[0];
   if (/localhost/.test(base)) return toast('Add your Game web link in Settings first');
-  const link = base.split('#')[0] + '#j=' + encodeURIComponent(btoa(JSON.stringify({ db: cfg.db, group: cfg.group })));
-  try { if (navigator.share) { await navigator.share({ title: 'Sudoku Squad', text: 'Join my Sudoku squad!', url: link }); return; } } catch (e) {}
-  try { await navigator.clipboard.writeText(link); toast('Invite link copied'); } catch (e) { prompt('Copy this link:', link); }
+  const b64 = btoa(JSON.stringify({ db: cfg.db, group: cfg.group })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const link = base.split('#')[0] + '#j=' + b64;
+  const txt = 'Join my Sudoku Squad! Squad code: ' + cfg.group + '\n' + link;
+  try { if (navigator.share) { await navigator.share({ title: 'Sudoku Squad', text: txt }); return; } } catch (e) {}
+  try { await navigator.clipboard.writeText(txt); toast('Invite link copied'); } catch (e) { prompt('Copy this link:', link); }
 }
 function checkInvite() {
   const m = location.hash.match(/j=([^&]+)/); if (!m) return;
   try {
-    const j = JSON.parse(atob(decodeURIComponent(m[1])));
+    const x = decodeURIComponent(m[1]).replace(/-/g, '+').replace(/_/g, '/'); const j = JSON.parse(atob(x + '==='.slice((x.length + 3) % 4)));
     if (j.db && j.group) { cfg = { db: j.db, group: j.group }; LS.set('cfg', cfg); history.replaceState(null, '', location.pathname); toast('Joined squad ' + j.group); if (!me.name) go('settings'); }
   } catch (e) {}
 }
